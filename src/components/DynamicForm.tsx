@@ -13,7 +13,7 @@ export default function DynamicForm({ rollNumber }: DynamicFormProps) {
   const [currentSection, setCurrentSection] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { register, handleSubmit, formState: { errors, isValid }, trigger } = useForm({ mode: 'onChange' });
+  const { register, handleSubmit, formState: { errors }, trigger, setFocus } = useForm({ mode: 'onChange' });
 
   useEffect(() => {
     const fetchForm = async () => {
@@ -30,11 +30,14 @@ export default function DynamicForm({ rollNumber }: DynamicFormProps) {
   }, [rollNumber]);
 
   const handleNext = async () => {
-    const isSectionValid = await trigger(
-      formData?.form.sections[currentSection].fields.map((field: FormField) => field.fieldId) || []
-    );
+    const fieldIds = formData?.form.sections[currentSection].fields.map((field: FormField) => field.fieldId) || [];
+    const isSectionValid = await trigger(fieldIds);
     if (isSectionValid) {
       setCurrentSection((prev) => prev + 1);
+    } else {
+      // Optionally focus the first error field
+      const firstErrorField = fieldIds.find((id) => errors[id]);
+      if (firstErrorField) setFocus(firstErrorField);
     }
   };
 
@@ -71,7 +74,10 @@ export default function DynamicForm({ rollNumber }: DynamicFormProps) {
         <form onSubmit={handleSubmit(onSubmit)}>
           {currentSectionData.fields.map((field: FormField) => (
             <div key={field.fieldId} className="mb-5">
-              <label className="block text-gray-800 font-semibold mb-1">{field.label}</label>
+              <label className="block text-gray-800 font-semibold mb-1">
+                {field.label}
+                {field.required && <span className="text-red-600 ml-1">*</span>}
+              </label>
               {field.type === 'textarea' ? (
                 <textarea
                   {...register(field.fieldId, {
@@ -80,7 +86,9 @@ export default function DynamicForm({ rollNumber }: DynamicFormProps) {
                     maxLength: field.maxLength ? { value: field.maxLength, message: field.validation?.message || `Maximum length is ${field.maxLength}` } : undefined,
                   })}
                   placeholder={field.placeholder}
-                  className="w-full p-3 border border-blue-200 rounded-lg shadow focus:ring-2 focus:ring-blue-400 text-gray-900 bg-blue-50 placeholder-gray-400"
+                  className={`w-full p-3 border rounded-lg shadow focus:ring-2 focus:ring-blue-400 text-gray-900 bg-blue-50 placeholder-gray-400 ${
+                    errors[field.fieldId] ? 'border-red-400' : 'border-blue-200'
+                  }`}
                   data-testid={field.dataTestId}
                 />
               ) : field.type === 'dropdown' ? (
@@ -88,7 +96,9 @@ export default function DynamicForm({ rollNumber }: DynamicFormProps) {
                   {...register(field.fieldId, {
                     required: field.required ? field.validation?.message || `${field.label} is required` : false,
                   })}
-                  className="w-full p-3 border border-blue-200 rounded-lg shadow focus:ring-2 focus:ring-blue-400 text-gray-900 bg-blue-50"
+                  className={`w-full p-3 border rounded-lg shadow focus:ring-2 focus:ring-blue-400 text-gray-900 bg-blue-50 ${
+                    errors[field.fieldId] ? 'border-red-400' : 'border-blue-200'
+                  }`}
                   data-testid={field.dataTestId}
                 >
                   <option value="">Select...</option>
@@ -121,7 +131,7 @@ export default function DynamicForm({ rollNumber }: DynamicFormProps) {
                   {...register(field.fieldId, {
                     required: field.required ? field.validation?.message || `${field.label} is required` : false,
                   })}
-                  className="accent-blue-500 mr-2"
+                  className={`accent-blue-500 mr-2 ${errors[field.fieldId] ? 'border-red-400' : ''}`}
                   data-testid={field.dataTestId}
                 />
               ) : (
@@ -133,7 +143,9 @@ export default function DynamicForm({ rollNumber }: DynamicFormProps) {
                     maxLength: field.maxLength ? { value: field.maxLength, message: field.validation?.message || `Maximum length is ${field.maxLength}` } : undefined,
                   })}
                   placeholder={field.placeholder}
-                  className="w-full p-3 border border-blue-200 rounded-lg shadow focus:ring-2 focus:ring-blue-400 text-gray-900 bg-blue-50 placeholder-gray-400"
+                  className={`w-full p-3 border rounded-lg shadow focus:ring-2 focus:ring-blue-400 text-gray-900 bg-blue-50 placeholder-gray-400 ${
+                    errors[field.fieldId] ? 'border-red-400' : 'border-blue-200'
+                  }`}
                   data-testid={field.dataTestId}
                 />
               )}
@@ -160,7 +172,6 @@ export default function DynamicForm({ rollNumber }: DynamicFormProps) {
               <button
                 type="submit"
                 className="py-2 px-8 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-lg shadow hover:from-blue-700 hover:to-purple-700 transition"
-                disabled={!isValid}
               >
                 Submit
               </button>
@@ -169,7 +180,6 @@ export default function DynamicForm({ rollNumber }: DynamicFormProps) {
                 type="button"
                 onClick={handleNext}
                 className="py-2 px-8 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-lg shadow hover:from-blue-700 hover:to-purple-700 transition"
-                disabled={!isValid}
               >
                 Next
               </button>
